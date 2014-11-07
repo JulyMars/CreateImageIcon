@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" minWidth="955" minHeight="600" height="272" width="453"
+			   creationComplete="init()"
+			   dragEnter="dragEnterHandler(event)"
+			   dragDrop="dragDropHandler(event)"
+			   >
+	<fx:Style source="ImageCutTool.css"/>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.events.DragEvent;
+			import mx.graphics.codec.PNGEncoder;
+			import mx.managers.DragManager;
+			
+			import org.asmax.util.ZipWriter;
+			
+			private var showBitmap:Bitmap;
+			private var sizeArray:Array;
+			private var nameArray:Array;
+			private var zip:ZipWriter;
+			
+			private function init():void
+			{
+				fileSizeInput.text = "128x128;64;32;16";
+//				DragManager.acceptDragDrop(_panel);
+			}
+			
+			/**
+			 * 释放拖拽
+			 */
+			private function dragDropHandler(e:DragEvent):void
+			{
+//				var obj:Object = e.dragSource.dataForFormat("swf");
+//				
+//				var index:int = int(currentSpr.name);
+//				var avatar:String = FileTool.shortNameWithoutExtension(new File(obj.data));
+//				
+//				loadSwf(obj.data, );
+			}
+			
+			
+			/**
+			 * 拖拽物品啊到当前容器
+			 */
+			private function dragEnterHandler(e:DragEvent):void 
+			{
+				DragManager.acceptDragDrop(this);
+//				DragManager.acceptDragDrop(_panel);
+				
+			}
+			
+			
+			private function evt_btn_click(e:MouseEvent):void
+			{
+				if(e.currentTarget == uploadBtn){
+					fileUploadHandler();
+				}else if(e.currentTarget == downloadBtn){
+					createZip();
+					downloadImages();
+				}
+			}
+			
+			private function fileUploadHandler():void
+			{
+				function evt_file_upload(e:Event):void
+				{
+					downloadBtn.enabled = false;
+					file.load();
+				}
+				function evt_file_upload_succ(e:Event):void
+				{
+					var bytedata:ByteArray = e.currentTarget.data;
+					if(bytedata){
+						function evt_load_image(evt:Event):void
+						{
+							showBitmap = evt.target.content as Bitmap;
+							if(showBitmap){
+								downloadBtn.enabled = true;
+							}
+						}
+						var loader:Loader = new Loader;
+						loader.contentLoaderInfo.addEventListener(Event.COMPLETE, evt_load_image);
+						loader.loadBytes(bytedata);
+					}
+//					fileSizeInput.text = FileReference(e.currentTarget).name;
+				}
+				function evt_file_upload_error(e:IOErrorEvent):void
+				{
+					trace(e.toString())
+//					fileSizeInput.text = e.toString();
+				}
+				function evt_file_upload_securityError(e:SecurityErrorEvent):void
+				{
+					trace(e.toString())
+//					fileSizeInput.text = e.toString();
+				}
+				
+				var file:FileReference = new FileReference();
+				file.addEventListener(Event.COMPLETE, evt_file_upload_succ);
+				file.addEventListener(Event.SELECT, evt_file_upload);
+				file.addEventListener(IOErrorEvent.IO_ERROR, evt_file_upload_error);
+				file.addEventListener(SecurityErrorEvent.SECURITY_ERROR, evt_file_upload_securityError);
+				file.browse();
+			}
+			
+			private function downloadImages():void
+			{
+				if(sizeArray){
+					var file:FileReference = new FileReference();
+					file.addEventListener(Event.COMPLETE, evt_download_complete);
+					file.save(zip.byteArray, "图标.zip");
+				}
+			}
+			
+			private function createZip():void
+			{
+				sizeArray = [];
+				nameArray = [];
+				var type:String = fileSizeInput.text;
+				var types:Array = type.split(";")
+				for(var i:int = 0; i < types.length; i++)
+				{
+					var _size:String = String(types[i]);
+					var widths:Array = _size.split("x");
+					if(widths.length == 1){
+						widths[1] = widths[0];
+					}
+					if(widths.length == 2){
+						sizeArray.push(widths);
+						nameArray.push(_size + ".png");
+					}
+				}
+							
+				zip = new ZipWriter();
+				for(i = 0; i < sizeArray.length; i++)
+				{
+					var datas:Array = sizeArray[i];
+					var _w:int = datas[0];
+					var _h:int = datas[1];
+					var _name:String = nameArray[i];
+					var _bitmap:Bitmap = new Bitmap(new BitmapData(_w, _h, true, 0x00000000));
+					_bitmap.bitmapData.draw(showBitmap, new Matrix(_w / showBitmap.width, 0, 0, _h / showBitmap.height))
+					
+					var png:PNGEncoder = new PNGEncoder();
+					var data:ByteArray = png.encode(_bitmap.bitmapData);
+					zip.addFile(_name, data);
+				}
+				zip.finish();
+			}
+
+			private function evt_download_complete(e:Event):void
+			{
+				Alert.show("下载完成");
+			}
+			
+		]]>
+	</fx:Script>
+	<s:Panel x="4" width="449" id="_panel" height="271" y="1" color="0xc2c2c2">
+	</s:Panel>
+	<s:Button x="10" y="38" id="uploadBtn" click="evt_btn_click(event)" label="上传"/>
+	<s:Button x="100" y="38" id="downloadBtn" click="evt_btn_click(event)" label="下载"/>
+	<s:TextInput x="10" y="101" id="fileSizeInput" width="382"/>
+	<s:Label x="11" y="77" text="下载图片的尺寸。&quot;;&quot;分割，宽高不同请用&quot;100x90&quot;格式" width="381"/>
+</s:Application>
